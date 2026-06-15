@@ -3,7 +3,7 @@ import json
 import numpy as np
 import scipy.optimize as sco
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 
@@ -16,10 +16,14 @@ if "GEMINI_API_KEY" not in os.environ:
 client = genai.Client()
 MODEL_ID = 'gemini-2.5-flash'
 
+# Expanded Professional Input Schema (6 Logical Inputs)
 class PortfolioRequest(BaseModel):
-    amount: float = 50000.0
-    horizon: int = 5
-    risk_tolerance: str = "medium"
+    amount: float = Field(50000.0, description="Total investment capital in INR")
+    horizon: int = Field(5, description="Investment horizon timeline in years")
+    risk_tolerance: str = Field("medium", description="Categorical risk tolerance level (low, medium, high)")
+    savings_to_income_ratio: float = Field(0.30, description="Proportion of monthly income allocated to savings/investments (e.g. 0.30 for 30%)")
+    primary_investment_goal: str = Field("wealth_accumulation", description="Primary objective (wealth_accumulation, retirement, capital_preservation, education)")
+    preferred_rebalancing_frequency: str = Field("annually", description="Desired portfolio adjustment intervals (monthly, quarterly, semi_annually, annually)")
 
 @app.get("/")
 def home():
@@ -30,6 +34,11 @@ def optimize_portfolio(request: PortfolioRequest):
     risk_tolerance = request.risk_tolerance.strip().lower()
     amount = request.amount
     horizon = request.horizon
+    
+    # New inputs parsed cleanly for schema logging (ready if needed in the response layout)
+    savings_ratio = request.savings_to_income_ratio
+    investment_goal = request.primary_investment_goal.strip().lower()
+    rebalance_freq = request.preferred_rebalancing_frequency.strip().lower()
     
     risk_map = {"low": 0.25, "medium": 0.55, "high": 0.85}
     user_profile = {
