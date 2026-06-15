@@ -160,6 +160,11 @@ def optimize_portfolio(request: PortfolioRequest):
         if p_volatility == 0: return 0
         return -(p_return - risk_free_rate) / p_volatility
 
-    optimized_result = sco.minimize(
-        fun=neg_sharpe_ratio, x0=num_assets * [1.0 / num_assets], args=(R, covariance_matrix, R_f),
-        method='SLSQP', bounds=[(0.0, 1.0) for _ in range(num_assets)], constraints=({'type': 'eq',
+   optimized_result = sco.minimize(
+        fun=neg_sharpe_ratio, 
+        x0=num_assets * [1.0 / num_assets], 
+        args=(R, covariance_matrix, R_f),
+        method='SLSQP', 
+        bounds=[(0.0, 1.0) for _ in range(num_assets)], 
+        constraints={'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
+    )
