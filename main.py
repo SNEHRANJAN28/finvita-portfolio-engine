@@ -96,8 +96,9 @@ def optimize_portfolio(request: PortfolioRequest):
         {search_response.text}
         """
         
-            structured_response = client.models.generate_content(
-            model=MODEL_ID, contents=parsing_prompt,
+        structured_response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=parsing_prompt,
             config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=native_json_schema, temperature=0.0),
         )
 
@@ -166,7 +167,6 @@ def optimize_portfolio(request: PortfolioRequest):
     expected_p_return, expected_p_volatility = portfolio_performance(optimal_weights, R, covariance_matrix)
     final_sharpe_ratio = -optimized_result.fun
 
-    # ---- NEW EXPLICIT DATA STRUCTURING FOR FRONTEND ----
     frontend_allocations_list = []
     allocation_string_mapping = {}
     
@@ -174,10 +174,8 @@ def optimize_portfolio(request: PortfolioRequest):
         allocation_percentage = max(0.0, round(optimal_weights[idx] * 100, 2))
         allocated_amount = round((allocation_percentage / 100) * user_profile["amount"], 2)
         
-        # Save string reference for the report block compatibility
         allocation_string_mapping[asset] = {"percentage": allocation_percentage, "amount_str": f"₹{allocated_amount:,}"}
         
-        # New clean numeric array object
         frontend_allocations_list.append({
             "asset_name": asset,
             "percentage": allocation_percentage,
