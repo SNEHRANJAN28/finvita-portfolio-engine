@@ -44,11 +44,7 @@ def optimize_portfolio(request: PortfolioRequest):
     adjusted_returns = []
     market_data_json = {"items": []}
 
-    # =====================================================================
-    # LAYER 3: DUAL-PHASE DATA DISCOVERY & SCHEMA PARSING (100% MATCHED)
-    # =====================================================================
     try:
-        # Strict Indian search prompt completely synchronized with your terminal version
         market_search_prompt = f"""
         You are an expert quantitative market researcher specializing exclusively in the Indian financial markets (NSE, BSE, and SEBI-regulated instruments).
         The user profile is: Risk Level: {user_profile['risk_tolerance'].upper()}, Investment Horizon: {user_profile['investment_horizon']} years.
@@ -138,9 +134,6 @@ def optimize_portfolio(request: PortfolioRequest):
             discovered_assets.append(item["asset_name"])
             adjusted_returns.append(item["forecasted_return"] + (0.5 * item["sentiment_score"]))
 
-    # =====================================================================
-    # LAYER 4: PORTFOLIO OPTIMIZATION CORE (SciPy Mathematical Block)
-    # =====================================================================
     base_covariance = np.array([
         [0.025, 0.010, 0.001, 0.004], [0.010, 0.040, 0.000, 0.006],
         [0.001, 0.000, 0.002, 0.001], [0.004, 0.006, 0.001, 0.015]
@@ -160,7 +153,7 @@ def optimize_portfolio(request: PortfolioRequest):
         if p_volatility == 0: return 0
         return -(p_return - risk_free_rate) / p_volatility
 
-   optimized_result = sco.minimize(
+    optimized_result = sco.minimize(
         fun=neg_sharpe_ratio, 
         x0=num_assets * [1.0 / num_assets], 
         args=(R, covariance_matrix, R_f),
@@ -168,3 +161,57 @@ def optimize_portfolio(request: PortfolioRequest):
         bounds=[(0.0, 1.0) for _ in range(num_assets)], 
         constraints={'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
     )
+
+    optimal_weights = optimized_result.x
+    expected_p_return, expected_p_volatility = portfolio_performance(optimal_weights, R, covariance_matrix)
+    final_sharpe_ratio = -optimized_result.fun
+
+    allocation_results = {}
+    for idx, asset in enumerate(discovered_assets):
+        allocation_percentage = max(0.0, round(optimal_weights[idx] * 100, 2))
+        allocated_amount = round((allocation_percentage / 100) * user_profile["amount"], 2)
+        allocation_results[asset] = {"percentage": allocation_percentage, "amount_str": f"₹{allocated_amount:,}"}
+
+    llm_explainability_payload = {
+        "user_profile": {"investment_capital_in_inr": f"₹{user_profile['amount']:,}", "investment_horizon_years": user_profile["investment_horizon"], "risk_tolerance_profile": user_profile["risk_tolerance"].upper()},
+        "mathematical_outputs": {"portfolio_expected_annualized_return": f"{round(expected_p_return * 100, 2)}%", "portfolio_volatility_risk": f"{round(expected_p_volatility * 100, 2)}%", "sharpe_ratio_score": round(final_sharpe_ratio, 2)}
+    }
+
+    output_report = f"Advisory Brief for Your Investment Portfolio\n\nClient Profile: {user_profile['risk_tolerance'].upper()} Risk Tolerance, Long-Term Horizon ({user_profile['investment_horizon']} years), Investment Amount: ₹{user_profile['amount']:,}\n" + "-"*80 + "\n"
+
+    if not using_fallback:
+        try:
+            explainability_prompt = f"""
+            You are an elite quantitative asset manager specialized exclusively in Indian financial markets. 
+            Review this complete system telemetry payload consisting of Indian user criteria and optimized allocation configurations:
+            {json.dumps(llm_explainability_payload, indent=4)}
+            And the exact allocations:
+            {json.dumps(allocation_results, indent=4)}
+
+            Write an elegant, deeply personalized financial advisory brief for the user based ONLY on the data inside the payload. 
+            Do not mention US stocks or international funds. Double check that all metrics match the calculation fields exactly.
+            Use these exact headers:
+            ### 🏛️ The Core Strategy Why
+            ### 📑 Stock & Instrument Drilldown
+            ### 🚀 Strategic Suggestions
+            """
+            final_response = client.models.generate_content(model=MODEL_ID, contents=explainability_prompt, config=types.GenerateContentConfig(temperature=0.3))
+            output_report += final_response.text
+            return {"status": "success", "fallback_active": False, "report": output_report}
+        except Exception:
+            using_fallback = True
+
+    if using_fallback:
+        p_ret = llm_explainability_payload["mathematical_outputs"]["portfolio_expected_annualized_return"]
+        p_vol = llm_explainability_payload["mathematical_outputs"]["portfolio_volatility_risk"]
+        p_sr = llm_explainability_payload["mathematical_outputs"]["sharpe_ratio_score"]
+        
+        output_report += "### 🏛️ The Core Strategy Why\n\nYour investment strategy has been structured using local baseline asset parameters. This approach has delivered an **expected annualized return of " + p_ret + "** combined with a managed **portfolio volatility of " + p_vol + "**, yielding a stable **Sharpe Ratio of " + str(p_sr) + "**.\n\n### 📑 Stock & Instrument Drilldown\n\n"
+        for asset, data in allocation_results.items():
+            if data["percentage"] > 0:
+                output_report += f"* **{asset} - Allocation: {data['percentage']}% ({data['amount_str']})**\n    * **Why:** Component functions to generate optimal compounding returns within your risk parameters.\n"
+            else:
+                output_report += f"* **{asset} - Allocation: 0.0% (₹0.0)**\n    * **Why:** Excluded to maintain marginal efficiency bounds.\n"
+        output_report += "\n### 🚀 Strategic Suggestions\n\n1. Commit to Long-Term Domestic Compounding.\n2. Enforce Routine Annual Rebalancing.\n3. Averaging Capital Extensions."
+        
+        return {"status": "success", "fallback_active": True, "report": output_report}
