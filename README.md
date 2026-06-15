@@ -1,26 +1,4 @@
-[User Request]
-│ (Amount, Horizon, Risk Tolerance)
-▼
-┌──────────────┐      Google Search      ┌─────────────────────────────┐
-│ Layer 1 & 2  │ ──────────────────────> │ Live Indian Market Insight  │
-│ AI Discovery │ <────────────────────── │ (NSE/BSE Asset Metrics)     │
-└──────┬───────┘                         └─────────────────────────────┘
-│ Validated JSON Schema
-▼
-┌──────────────┐      SciPy SLSQP solver │ R_f = 6.5% G-Sec Base
-│   Layer 3    │ ──────────────────────> │ Maximize Sharpe Ratio       │
-│ Math Engine  │ <────────────────────── │ Efficient Frontier Weighting│
-└──────┬───────┘                         └─────────────────────────────┘
-│ Optimal Portfolio Weights
-▼
-┌──────────────┐      Fallback Trigger   ┌─────────────────────────────┐
-│ Layer 4 & 5  │ ──────────────────────> │ Native Narrative Matrix     │
-│ Explainable  │                         │ (Formatted Layout Match)    │
-│  Advisory    │ <────────────────────── │ (Deterministic Backup)      │
-└──────┬───────┘
-│ Fully Structured Markdown Text
-▼
-[JSON API Response] -> (Client Delivery)
+ENGINE EXPLAINED
 
 1. User Profile Ingestion: Reads client criteria including investment capital (INR), long-term horizon vectors, and categorical risk scores (`low`, `medium`, `high`).
 2. Dual-Phase Data Discovery & Schema Parsing: Deploys Gemini Search Grounding to scrape live NSE/BSE asset metrics, filtering out international instruments to enforce absolute Indian market compliance. The text is parsed via deterministic JSON schemas.
