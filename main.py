@@ -97,7 +97,7 @@ def optimize_portfolio(request: PortfolioRequest):
         """
         
         structured_response = client.models.generate_content(
-            model=MODEL_ID, contents=parsing_prompt,
+            model=MODEL_ID contents=parsing_prompt,
             config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=native_json_schema, temperature=0.0),
         )
 
@@ -166,11 +166,24 @@ def optimize_portfolio(request: PortfolioRequest):
     expected_p_return, expected_p_volatility = portfolio_performance(optimal_weights, R, covariance_matrix)
     final_sharpe_ratio = -optimized_result.fun
 
-    allocation_results = {}
+    # ---- NEW EXPLICIT DATA STRUCTURING FOR FRONTEND ----
+    frontend_allocations_list = []
+    allocation_string_mapping = {}
+    
     for idx, asset in enumerate(discovered_assets):
         allocation_percentage = max(0.0, round(optimal_weights[idx] * 100, 2))
         allocated_amount = round((allocation_percentage / 100) * user_profile["amount"], 2)
-        allocation_results[asset] = {"percentage": allocation_percentage, "amount_str": f"₹{allocated_amount:,}"}
+        
+        # Save string reference for the report block compatibility
+        allocation_string_mapping[asset] = {"percentage": allocation_percentage, "amount_str": f"₹{allocated_amount:,}"}
+        
+        # New clean numeric array object
+        frontend_allocations_list.append({
+            "asset_name": asset,
+            "percentage": allocation_percentage,
+            "amount": allocated_amount,
+            "amount_str": f"₹{allocated_amount:,}"
+        })
 
     llm_explainability_payload = {
         "user_profile": {"investment_capital_in_inr": f"₹{user_profile['amount']:,}", "investment_horizon_years": user_profile["investment_horizon"], "risk_tolerance_profile": user_profile["risk_tolerance"].upper()},
@@ -186,7 +199,7 @@ def optimize_portfolio(request: PortfolioRequest):
             Review this complete system telemetry payload consisting of Indian user criteria and optimized allocation configurations:
             {json.dumps(llm_explainability_payload, indent=4)}
             And the exact allocations:
-            {json.dumps(allocation_results, indent=4)}
+            {json.dumps(allocation_string_mapping, indent=4)}
 
             Write an elegant, deeply personalized financial advisory brief for the user based ONLY on the data inside the payload. 
             Do not mention US stocks or international funds. Double check that all metrics match the calculation fields exactly.
@@ -197,7 +210,12 @@ def optimize_portfolio(request: PortfolioRequest):
             """
             final_response = client.models.generate_content(model=MODEL_ID, contents=explainability_prompt, config=types.GenerateContentConfig(temperature=0.3))
             output_report += final_response.text
-            return {"status": "success", "fallback_active": False, "report": output_report}
+            return {
+                "status": "success", 
+                "fallback_active": False, 
+                "report": output_report,
+                "allocations": frontend_allocations_list
+            }
         except Exception:
             using_fallback = True
 
@@ -207,11 +225,16 @@ def optimize_portfolio(request: PortfolioRequest):
         p_sr = llm_explainability_payload["mathematical_outputs"]["sharpe_ratio_score"]
         
         output_report += "### 🏛️ The Core Strategy Why\n\nYour investment strategy has been structured using local baseline asset parameters. This approach has delivered an **expected annualized return of " + p_ret + "** combined with a managed **portfolio volatility of " + p_vol + "**, yielding a stable **Sharpe Ratio of " + str(p_sr) + "**.\n\n### 📑 Stock & Instrument Drilldown\n\n"
-        for asset, data in allocation_results.items():
+        for asset, data in allocation_string_mapping.items():
             if data["percentage"] > 0:
                 output_report += f"* **{asset} - Allocation: {data['percentage']}% ({data['amount_str']})**\n    * **Why:** Component functions to generate optimal compounding returns within your risk parameters.\n"
             else:
                 output_report += f"* **{asset} - Allocation: 0.0% (₹0.0)**\n    * **Why:** Excluded to maintain marginal efficiency bounds.\n"
         output_report += "\n### 🚀 Strategic Suggestions\n\n1. Commit to Long-Term Domestic Compounding.\n2. Enforce Routine Annual Rebalancing.\n3. Averaging Capital Extensions."
         
-        return {"status": "success", "fallback_active": True, "report": output_report}
+        return {
+            "status": "success", 
+            "fallback_active": True, 
+            "report": output_report,
+            "allocations": frontend_allocations_list
+        }
