@@ -96,8 +96,8 @@ def optimize_portfolio(request: PortfolioRequest):
         {search_response.text}
         """
         
-        structured_response = client.models.generate_content(
-            model=MODEL_ID contents=parsing_prompt,
+            structured_response = client.models.generate_content(
+            model=MODEL_ID, contents=parsing_prompt,
             config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=native_json_schema, temperature=0.0),
         )
 
