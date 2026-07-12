@@ -29,7 +29,7 @@ class PortfolioRequest(BaseModel):
 def home():
     return {"status": "healthy", "engine": "FinVita Indian Portfolio Optimization Engine"}
 
-@app.post("/optimize")
+@app.post("/run-optimize")
 def optimize_portfolio(request: PortfolioRequest):
     risk_tolerance = request.risk_tolerance.strip().lower()
     amount = request.amount
