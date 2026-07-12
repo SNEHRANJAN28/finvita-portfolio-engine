@@ -1,43 +1,33 @@
-import os
-import numpy as np
 from fastapi import FastAPI
-from models import PortfolioRequest, SimulationRequest
-from simulation import simulate_portfolio_volatility, adjust_portfolio_on_user_input
+from models import SimulationRequest
+from simulation import run_market_simulation, get_advisory_adjustment
+import numpy as np
 
-app = FastAPI(title="FinVita Indian Portfolio Engine API")
-
-# Ensure API Key is loaded via environment variables
-client_api_key = os.getenv("GEMINI_API_KEY")
+app = FastAPI(title="FinVita Sequential Engine")
 
 base_covariance = np.array([
     [0.025, 0.010, 0.001, 0.004], [0.010, 0.040, 0.000, 0.006],
     [0.001, 0.000, 0.002, 0.001], [0.004, 0.006, 0.001, 0.015]
 ])
 
-@app.get("/")
-def home():
-    return {"status": "healthy", "engine": "FinVita Portfolio Engine"}
-
-@app.post("/optimize")
-def optimize_portfolio(request: PortfolioRequest):
-    # Your optimization logic here
-    return {"status": "success"}
-
-@app.post("/simulate-volatility")
-def simulate(request: SimulationRequest):
-    # Now this will show all 3 fields in the Swagger UI
-    simulation = simulate_portfolio_volatility(
+@app.post("/simulate-and-advise")
+def simulate_and_advise(request: SimulationRequest):
+    # 1. Run raw simulation
+    market_path = run_market_simulation(
         np.array(request.weights), 
         np.array(request.returns), 
         base_covariance
     )
-    new_weights = adjust_portfolio_on_user_input(
-        np.array(request.weights), 
+    
+    # 2. Generate advisory adjustment based on the panic level provided
+    advisory_recommendation = get_advisory_adjustment(
+        request.weights, 
         request.panic_level
     )
     
     return {
-        "simulation_path": simulation,
-        "suggested_adjustment": new_weights.tolist(),
-        "status": "simulation_complete"
+        "market_simulation": market_path,
+        "user_panic_input": request.panic_level,
+        "advisory_adjustment": advisory_recommendation,
+        "message": "Market simulated. Advisory adjustment generated based on reaction."
     }
