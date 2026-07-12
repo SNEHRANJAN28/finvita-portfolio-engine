@@ -7,3 +7,8 @@ class PortfolioRequest(BaseModel):
     savings_to_income_ratio: float = Field(0.30, description="Proportion of monthly income allocated to savings")
     primary_investment_goal: str = Field("wealth_accumulation", description="Primary objective")
     preferred_rebalancing_frequency: str = Field("annually", description="Desired adjustment intervals")
+
+class SimulationRequest(BaseModel):
+    weights: list[float]
+    returns: list[float]
+    panic_level: float = Field(0.0, ge=0.0, le=1.0)
