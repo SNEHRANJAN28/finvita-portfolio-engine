@@ -86,10 +86,14 @@ def run_rf_risk_classification(current_features: np.ndarray) -> np.ndarray:
 def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max_vol_bound: float) -> np.ndarray:
     """
     Heuristic Particle Swarm Optimization (PSO) for Modern Portfolio Theory (MPT)
-    Maximizes Sharpe Ratio under dynamic risk/volatility constraints
+    Maximizes Sharpe Ratio under dynamic risk/volatility constraints with strict asset bounds.
     """
     num_assets = len(returns)
     r_f = 0.065
+    
+    # Strict allocation guardrails to force diversification
+    min_weight = 0.10  # 10% absolute minimum per asset (prevents 0% allocations)
+    max_weight = 0.50  # 50% absolute maximum per asset (prevents asset hogging)
     
     # PSO Parameters
     num_particles = 40
@@ -98,9 +102,10 @@ def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max
     c1 = 1.5  # Cognitive coefficient
     c2 = 1.5  # Social coefficient
     
-    # Initialize swarm particles (portfolio weight configurations)
-    particles = np.random.rand(num_particles, num_assets)
-    particles = particles / particles.sum(axis=1)[:, np.newaxis]  # Standardize weight bounds (sum to 1.0)
+    # Initialize swarm particles within our strict bounds
+    particles = np.random.uniform(min_weight, max_weight, (num_particles, num_assets))
+    particles = particles / particles.sum(axis=1)[:, np.newaxis]  # Standardize
+    
     velocities = np.zeros((num_particles, num_assets))
     
     p_best = np.copy(particles)
@@ -114,7 +119,7 @@ def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max
             p_return = np.dot(weights, returns)
             p_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
             
-            # Constraint check: Enforce the segmented investor's risk ceiling
+            # Penalize portfolios that break our risk limits
             if p_volatility > max_vol_bound or p_volatility == 0:
                 fitness = -999.0
             else:
@@ -130,20 +135,21 @@ def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max
                 g_best_fitness = fitness
                 g_best = np.copy(weights)
                 
-        # Update velocities and positions
+        # Update velocities
         r1, r2 = np.random.rand(), np.random.rand()
         velocities = (w * velocities + 
                       c1 * r1 * (p_best - particles) + 
                       c2 * r2 * (g_best - particles))
         
-        particles = np.clip(particles + velocities, 0.0, 1.0)
-        # Re-normalize to preserve portfolio budget constraints
+        # Apply updates and clamp strictly to our [10%, 50%] boundary rules
+        particles = np.clip(particles + velocities, min_weight, max_weight)
+        
+        # Re-normalize to preserve portfolio budget constraints (sum to 1.0)
         row_sums = particles.sum(axis=1)
-        row_sums[row_sums == 0] = 1.0  # Prevent divide by zero
+        row_sums[row_sums == 0] = 1.0
         particles = particles / row_sums[:, np.newaxis]
         
     return g_best
-
 
 # =====================================================================
 # CORE API ENDPOINTS
