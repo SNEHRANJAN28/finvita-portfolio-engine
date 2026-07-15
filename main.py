@@ -12,7 +12,7 @@ import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 
-app = FastAPI(title="FinVita Indian Portfolio Engine API")
+app = FastAPI(title="WealtHive Indian Portfolio Engine API")
 
 # Initialize the Gemini Client safely from Environment Variables
 if "GEMINI_API_KEY" not in os.environ:
@@ -151,7 +151,7 @@ def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max
 
 @app.get("/")
 def home():
-    return {"status": "healthy", "engine": "FinVita Indian ML-Augmented Optimization Engine"}
+    return {"status": "healthy", "engine": "WealtHive Indian ML-Augmented Optimization Engine"}
 
 
 @app.post("/optimize")
@@ -381,8 +381,8 @@ def optimize_portfolio(request: PortfolioRequest):
             Do not mention US stocks or international funds. Double check that all metrics match the calculation fields exactly.
             Use these exact headers:
             ### 🏛️ The Core Strategy Why
-            ### 📑 Stock & Instrument Drilldown
-            ### 🚀 Strategic Suggestions
+            ### Stock & Instrument Drilldown
+            ### Strategic Suggestions
             """
             final_response = client.models.generate_content(model=MODEL_ID, contents=explainability_prompt, config=types.GenerateContentConfig(temperature=0.3))
             output_report += final_response.text
@@ -400,13 +400,13 @@ def optimize_portfolio(request: PortfolioRequest):
         p_vol = llm_explainability_payload["mathematical_outputs"]["portfolio_volatility_risk"]
         p_sr = llm_explainability_payload["mathematical_outputs"]["sharpe_ratio_score"]
         
-        output_report += "### 🏛️ The Core Strategy Why\n\nYour investment strategy has been structured using local baseline asset parameters. This approach has delivered an **expected annualized return of " + p_ret + "** combined with a managed **portfolio volatility of " + p_vol + "**, yielding a stable **Sharpe Ratio of " + str(p_sr) + "**.\n\n### 📑 Stock & Instrument Drilldown\n\n"
+        output_report += "### 🏛️ The Core Strategy Why\n\nYour investment strategy has been structured using local baseline asset parameters. This approach has delivered an **expected annualized return of " + p_ret + "** combined with a managed **portfolio volatility of " + p_vol + "**, yielding a stable **Sharpe Ratio of " + str(p_sr) + "**.\n\n###  Stock & Instrument Drilldown\n\n"
         for asset, data in allocation_string_mapping.items():
             if data["percentage"] > 0:
                 output_report += f"* **{asset} - Allocation: {data['percentage']}% ({data['amount_str']}) [{data['risk_status']}]**\n    * **Why:** Component functions to generate optimal compounding returns within your risk parameters.\n"
             else:
                 output_report += f"* **{asset} - Allocation: 0.0% (₹0.0)**\n    * **Why:** Excluded to maintain marginal efficiency bounds.\n"
-        output_report += "\n### 🚀 Strategic Suggestions\n\n1. Commit to Long-Term Domestic Compounding.\n2. Enforce Routine Annual Rebalancing.\n3. Averaging Capital Extensions."
+        output_report += "\n###  Strategic Suggestions\n\n1. Commit to Long-Term Domestic Compounding.\n2. Enforce Routine Annual Rebalancing.\n3. Averaging Capital Extensions."
         
         return {
             "status": "success", 
