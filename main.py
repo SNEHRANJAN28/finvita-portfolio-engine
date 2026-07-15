@@ -98,6 +98,10 @@ def get_dynamic_assets(risk_tolerance: str, investment_amount: float) -> list:
 # ML PIPELINE SUPPORT FUNCTIONS (Matching Flowchart)
 # =====================================================================
 
+# =====================================================================
+# ML PIPELINE SUPPORT FUNCTIONS (Matching Flowchart)
+# =====================================================================
+
 def run_kmeans_segmentation(request: PortfolioRequest) -> int:
     """
     K-Means Investor Segmentation
@@ -192,7 +196,6 @@ def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max
                 fitness = (p_return - r_f) / p_volatility
             
             # 2. Apply Soft Penalties for breaking allocation bounds
-            # This forces the optimizer to naturally find solutions in the [10%, 50%] range
             penalty = 0.0
             for w_val in weights:
                 if w_val < min_weight:
