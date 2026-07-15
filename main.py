@@ -86,70 +86,85 @@ def run_rf_risk_classification(current_features: np.ndarray) -> np.ndarray:
 def particle_swarm_optimization(returns: np.ndarray, cov_matrix: np.ndarray, max_vol_bound: float) -> np.ndarray:
     """
     Heuristic Particle Swarm Optimization (PSO) for Modern Portfolio Theory (MPT)
-    Maximizes Sharpe Ratio under dynamic risk/volatility constraints with strict asset bounds.
+    Uses soft boundary penalties to guarantee realistic, organic diversification.
     """
     num_assets = len(returns)
     r_f = 0.065
     
-    # Strict allocation guardrails to force diversification
-    min_weight = 0.10  # 10% absolute minimum per asset (prevents 0% allocations)
-    max_weight = 0.50  # 50% absolute maximum per asset (prevents asset hogging)
+    # Portfolio Guardrails
+    min_weight = 0.10  # 10% minimum floor
+    max_weight = 0.50  # 50% maximum ceiling
     
     # PSO Parameters
-    num_particles = 40
-    iterations = 50
-    w = 0.7   # Inertia weight
-    c1 = 1.5  # Cognitive coefficient
-    c2 = 1.5  # Social coefficient
+    num_particles = 50
+    iterations = 80
+    w = 0.729  # Standard cognitive inertia weight
+    c1 = 1.49445  # Cognitive coefficient
+    c2 = 1.49445  # Social coefficient
     
-    # Initialize swarm particles within our strict bounds
+    # Initialize particles with randomized, valid distributions
     particles = np.random.uniform(min_weight, max_weight, (num_particles, num_assets))
-    particles = particles / particles.sum(axis=1)[:, np.newaxis]  # Standardize
+    particles = particles / particles.sum(axis=1)[:, np.newaxis]
     
     velocities = np.zeros((num_particles, num_assets))
-    
     p_best = np.copy(particles)
-    p_best_fitness = np.array([-999.0] * num_particles)
+    p_best_fitness = np.array([-99999.0] * num_particles)
     g_best = np.array([1.0 / num_assets] * num_assets)
-    g_best_fitness = -999.0
+    g_best_fitness = -99999.0
     
     for _ in range(iterations):
         for i in range(num_particles):
+            # 1. Soft-normalize the candidate weights so they sum to 1.0
             weights = particles[i]
+            weights = np.maximum(weights, 0.001)  # Prevent divide-by-zero
+            weights = weights / np.sum(weights)
+            
             p_return = np.dot(weights, returns)
             p_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
             
-            # Penalize portfolios that break our risk limits
-            if p_volatility > max_vol_bound or p_volatility == 0:
-                fitness = -999.0
+            # Base Fitness: Sharpe Ratio
+            if p_volatility == 0:
+                fitness = -99999.0
             else:
                 fitness = (p_return - r_f) / p_volatility
+            
+            # 2. Apply Soft Penalties for breaking allocation bounds
+            # This forces the optimizer to naturally find solutions in the [10%, 50%] range
+            penalty = 0.0
+            for w_val in weights:
+                if w_val < min_weight:
+                    penalty += 50.0 * (min_weight - w_val) ** 2  # Penalize being below 10%
+                elif w_val > max_weight:
+                    penalty += 50.0 * (w_val - max_weight) ** 2  # Penalize being above 50%
+            
+            # Penalize breaking volatility limits
+            if p_volatility > max_vol_bound:
+                penalty += 100.0 * (p_volatility - max_vol_bound) ** 2
                 
+            fitness -= penalty  # Deduct penalties from the fitness score
+            
             # Local best evaluation
             if fitness > p_best_fitness[i]:
                 p_best_fitness[i] = fitness
                 p_best[i] = np.copy(weights)
                 
-            # Global swarm best evaluation
+            # Global best evaluation
             if fitness > g_best_fitness:
                 g_best_fitness = fitness
                 g_best = np.copy(weights)
                 
-        # Update velocities
+        # Update velocities and positions
         r1, r2 = np.random.rand(), np.random.rand()
         velocities = (w * velocities + 
                       c1 * r1 * (p_best - particles) + 
                       c2 * r2 * (g_best - particles))
         
-        # Apply updates and clamp strictly to our [10%, 50%] boundary rules
-        particles = np.clip(particles + velocities, min_weight, max_weight)
+        particles = particles + velocities
         
-        # Re-normalize to preserve portfolio budget constraints (sum to 1.0)
-        row_sums = particles.sum(axis=1)
-        row_sums[row_sums == 0] = 1.0
-        particles = particles / row_sums[:, np.newaxis]
-        
-    return g_best
+    # Final cleanup: ensure the winning output is strictly normalized and bounded
+    final_weights = np.clip(g_best, min_weight, max_weight)
+    final_weights = final_weights / np.sum(final_weights)
+    return final_weights
 
 # =====================================================================
 # CORE API ENDPOINTS
