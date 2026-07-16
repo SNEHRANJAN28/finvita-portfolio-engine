@@ -1,5 +1,7 @@
 # AI-Augmented Quantitative Portfolio Optimization Framework
 
+🌐 **Live Project Link:** [View Live Application]([https://your-live-link.com](https://finvest-zeta.vercel.app))
+
 A modular, end-to-end investment allocation framework that merges unsupervised investor profiling, real-time web-scraped market sentiment, predictive machine learning, and metaheuristic optimization into a secure user dashboard.
 
 ---
